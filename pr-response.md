@@ -81,14 +81,14 @@ tests/test_watchlist.py::test_add_to_watchlist_duplicate_raises PASSED   [100%]
 Both new tests pass in isolation and the full suite (6 tests total) passes with no regressions.
 
 ## Comment 4 — Default visibility
-**My position:**
-**Reasoning:**
-**Tradeoff acknowledged:**
+**My position:** Private by default.
+**Reasoning:** A watchlist represents intent, not achievement, it's the "things I haven't watched yet" list, not a curated showcase like the collection. People are more self-conscious about unfinished or aspirational items than about things they've already watched and can vouch for.
+**Tradeoff acknowledged:** Private-by-default weakens the social discovery angle, since most users never go back to toggle visibility settings after signup, so fewer watchlists end up publicly visible than would under a public default. The tradeoff is accepted because avoiding accidental exposure of embarrassing or aspirational picks outweighs the loss in social reach for this specific feature.
 
 ## Comment 5 — Sort order
-**My position:**
-**Reasoning:**
-**Engagement with reviewer's point:**
+**My position:** Date-added (matching the maintainer's preference).
+**Reasoning:** A watchlist answers "what should I watch next," and the most recently added item is usually the one a user is most excited about right now, often because they just heard about it, saw a trailer, or got a recommendation. Timeline reflects intent better than alphabetical order does for this use case.
+**Engagement with reviewer's point:** Agreed with dev-lead's push for date-added over alphabetical. Alphabetical is a lookup structure, useful when you already know the title and want to find it fast, but a watchlist is meant to be browsed for what's next, not searched by name, so recency serves the feature's actual purpose better.
 
 ## Comment 6 — Rebase
 **What conflicted:**
