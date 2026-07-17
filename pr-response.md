@@ -45,8 +45,40 @@ tests/test_collection.py::test_get_collection_returns_newest_first PASSED [100%]
 All 4 existing tests still pass, but I want to be explicit: none of these tests exercise `add_to_watchlist()` or the new `AlreadyInWatchlistError` path directly — there was no watchlist-specific test file yet. This pass only confirms the change didn't regress the collection feature. Comment 3 addresses adding real coverage for this dedup logic.
 
 ## Comment 3 — Missing test
-**What I did:**
-**How I verified:**
+**What I did:** Created `tests/test_watchlist.py`, modeled directly on the fixture and assertion patterns already established in `tests/test_collection.py`. It reuses the same `app`, `sample_user`, and `sample_film` fixture structure (isolated in-memory DB per test, ids returned rather than ORM objects). I added `test_add_to_watchlist_nonexistent_film_raises`, mirroring `test_add_to_collection_nonexistent_film_raises` — calls `add_to_watchlist()` with a fake UUID and asserts `FilmNotFoundError` is raised via `pytest.raises`. I also added `test_add_to_watchlist_duplicate_raises`, mirroring `test_add_to_collection_duplicate_raises` — adds a film to the watchlist, then adds it again and asserts `AlreadyInWatchlistError` is raised, followed by a `WatchlistEntry.query.filter_by(...).count() == 1` check proving the failed second call had no side effect. This gives the Comment 2 dedup logic (both the app-level check and the `AlreadyInWatchlistError` exception) direct test coverage for the first time.
+**How I verified:** Ran the new file in isolation, then the full suite:
+
+```
+============================= test session starts ==============================
+platform darwin -- Python 3.14.5, pytest-9.1.1, pluggy-1.6.0 -- .../ai201-project6-cinelog-starter/.venv/bin/python3.14
+cachedir: .pytest_cache
+rootdir: /Users/shivendrabhagat/ShivDon/Codepath Projects/ai201-project6-cinelog-starter
+collecting ... collected 2 items
+
+tests/test_watchlist.py::test_add_to_watchlist_nonexistent_film_raises PASSED [ 50%]
+tests/test_watchlist.py::test_add_to_watchlist_duplicate_raises PASSED   [100%]
+
+============================== 2 passed in 0.25s ===============================
+```
+
+```
+============================= test session starts ==============================
+platform darwin -- Python 3.14.5, pytest-9.1.1, pluggy-1.6.0 -- .../ai201-project6-cinelog-starter/.venv/bin/python3.14
+cachedir: .pytest_cache
+rootdir: /Users/shivendrabhagat/ShivDon/Codepath Projects/ai201-project6-cinelog-starter
+collecting ... collected 6 items
+
+tests/test_collection.py::test_add_to_collection_creates_entry PASSED    [ 16%]
+tests/test_collection.py::test_add_to_collection_duplicate_raises PASSED [ 33%]
+tests/test_collection.py::test_add_to_collection_nonexistent_film_raises PASSED [ 50%]
+tests/test_collection.py::test_get_collection_returns_newest_first PASSED [ 66%]
+tests/test_watchlist.py::test_add_to_watchlist_nonexistent_film_raises PASSED [ 83%]
+tests/test_watchlist.py::test_add_to_watchlist_duplicate_raises PASSED   [100%]
+
+============================== 6 passed in 0.19s ===============================
+```
+
+Both new tests pass in isolation and the full suite (6 tests total) passes with no regressions.
 
 ## Comment 4 — Default visibility
 **My position:**
