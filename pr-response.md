@@ -91,8 +91,32 @@ Both new tests pass in isolation and the full suite (6 tests total) passes with 
 **Engagement with reviewer's point:** Agreed with dev-lead's push for date-added over alphabetical. Alphabetical is a lookup structure, useful when you already know the title and want to find it fast, but a watchlist is meant to be browsed for what's next, not searched by name, so recency serves the feature's actual purpose better.
 
 ## Comment 6 — Rebase
-**What conflicted:**
-**How I resolved it:**
+**What conflicted:** Ran `git fetch origin` then `git rebase origin/main`. Two conflicts came up. First, `.gitignore` — an add/add conflict, since main had already added its own `.gitignore` (via `718a9a8`) that included `.pytest_cache/`, which our branch's version didn't have. Second, and expected, `models.py` — main's `07ca580` migrated `Film.id` from integer to UUID (`db.String(36)`), but `WatchlistEntry.film_id` (added on this branch) was still declared as `db.Integer`, so it no longer matched the foreign key it pointed to.
+**How I resolved it:** For `.gitignore`, merged both versions so `.pytest_cache/` is retained alongside the rest of our entries. For `models.py`, changed `WatchlistEntry.film_id` from `db.Integer` to `db.String(36)`, following the exact same pattern already applied to `CollectionEntry.film_id` in commit `7c37bcd`. After the rebase finished, I also grepped for lingering integer-era references and found two stale docstring/comment spots that predated the migration: the `film_id (int): ... (Note: integer — pre-refactor)` docstring line in `services/watchlist_service.py`, and the `Body: { "film_id": <int> }` comment in `routes/watchlist/watchlist.py`. Updated both to describe `film_id` as a UUID string, consistent with the actual schema.
 **How I verified no conflict remains:**
+
+```
+============================= test session starts ==============================
+platform darwin -- Python 3.14.5, pytest-9.1.1, pluggy-1.6.0 -- .../ai201-project6-cinelog-starter/.venv/bin/python3.14
+cachedir: .pytest_cache
+rootdir: /Users/shivendrabhagat/ShivDon/Codepath Projects/ai201-project6-cinelog-starter
+collecting ... collected 6 items
+
+tests/test_collection.py::test_add_to_collection_creates_entry PASSED    [ 16%]
+tests/test_collection.py::test_add_to_collection_duplicate_raises PASSED [ 33%]
+tests/test_collection.py::test_add_to_collection_nonexistent_film_raises PASSED [ 50%]
+tests/test_collection.py::test_get_collection_returns_newest_first PASSED [ 66%]
+tests/test_watchlist.py::test_add_to_watchlist_nonexistent_film_raises PASSED [ 83%]
+tests/test_watchlist.py::test_add_to_watchlist_duplicate_raises PASSED   [100%]
+
+============================== 6 passed in 0.19s ===============================
+```
+
+```
+$ git log --oneline --merges origin/main..HEAD
+(no output)
+```
+
+All 6 tests pass post-rebase, and the empty output from `git log --oneline --merges origin/main..HEAD` confirms the rebase replayed every commit linearly with no merge commits introduced.
 
 ## PR Description
