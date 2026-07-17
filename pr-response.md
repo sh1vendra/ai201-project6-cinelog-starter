@@ -2,6 +2,12 @@
 
 ## AI Usage
 
+I used AI (Claude Code) at three distinct points in this PR, in three different ways:
+
+1. **Codebase orientation before touching any code.** Before making any changes, I had it read `models.py`, `services/collection_service.py`, and `tests/test_collection.py` and summarize `add_to_collection()`'s control flow, how deduplication is enforced (app-level check + DB-level `UniqueConstraint`), and the fixture/assertion patterns used in the test suite. This was read-only orientation — no code was written at this stage — so I understood the existing conventions before asking for anything to be applied to the watchlist code.
+2. **Mechanical execution of explicit instructions.** For the rename (Comment 1), test scaffolding (Comment 3), and rebase conflict resolution (Comment 6), I gave specific, scoped instructions — e.g. "rename `save_to_watchlist` to `add_to_watchlist`, find every call site, update them" — and had the tool carry out the mechanical steps: grepping for call sites, applying the same edit in each location, writing tests that mirror an existing test's structure, resolving the `models.py` merge conflict per the pattern already used in `7c37bcd`. In each case I reviewed the diff and the `pytest` output before moving on.
+3. **Independent reasoning on the two design-decision comments.** For Comment 4 (default visibility) and Comment 5 (sort order), I decided my position first — private-by-default, and date-added sort — and only then used the tool to stress-test the reasoning and tradeoffs behind decisions I'd already made, rather than asking it to generate a position from scratch. The "My position" stated in each of those sections is mine; the tool's role there was pressure-testing, not deciding.
+
 ## Comment 1 — Rename
 **What I did:** Renamed `save_to_watchlist()` to `add_to_watchlist()` in `services/watchlist_service.py` to match the project's `verb_to_noun` naming convention used elsewhere (e.g. `add_to_collection()`). Before renaming, I ran a project-wide search (`grep -rn "save_to_watchlist" --include="*.py" .`) to find every call site. It turned up two other references, both in `routes/watchlist/watchlist.py`: the import statement and the call inside the `add_film` view. I updated both to use the new name. A follow-up grep confirmed zero remaining references to the old name anywhere in the project.
 **How I verified:** Ran `pytest tests/ -v` after the rename to confirm nothing broke:
@@ -120,3 +126,55 @@ $ git log --oneline --merges origin/main..HEAD
 All 6 tests pass post-rebase, and the empty output from `git log --oneline --merges origin/main..HEAD` confirms the rebase replayed every commit linearly with no merge commits introduced.
 
 ## PR Description
+
+### What this feature does
+
+Adds a watchlist to CineLog — a list of films a user wants to watch, separate from their collection (films already watched). The watchlist supports:
+
+- `add_to_watchlist(user_id, film_id)` — adds a film to a user's watchlist. Raises `FilmNotFoundError` if the film doesn't exist, and `AlreadyInWatchlistError` if the film is already on that user's watchlist (enforced both at the application level and via a DB-level `UniqueConstraint` on `(user_id, film_id)`).
+- `get_watchlist(user_id)` — returns all films on a user's watchlist as a list of dicts, each with `date_added` and `public` attached, sorted newest-added first.
+- `GET /watchlist/<user_id>` and `POST /watchlist/<user_id>/add` endpoints exposing the above.
+
+### Design decisions
+
+- **Visibility should default to private.** A watchlist is aspirational ("things I haven't watched yet"), not a curated showcase like the collection, so it should default to `public=False` rather than exposing it by default. **Note:** `WatchlistEntry.public` in `models.py` is currently still `default=True` — this decision is documented here but the model default has not yet been flipped to match. Flagging as a follow-up before merge.
+- **Sort order is date-added, newest first.** A watchlist answers "what should I watch next," and the most recently added film is usually the one the user is most excited about right now, so recency-first serves that purpose better than an alphabetical listing.
+
+### Manual testing instructions
+
+Run the automated suite:
+
+```
+pytest tests/ -v
+```
+
+To exercise the feature manually against a running instance:
+
+```bash
+# start the app
+python app.py
+
+# create a user and a film first (via existing endpoints/DB), then:
+
+# add a film to a user's watchlist
+curl -X POST http://127.0.0.1:5000/watchlist/<user_id>/add \
+  -H "Content-Type: application/json" \
+  -d '{"film_id": "<film_uuid>"}'
+# → 201, returns the new WatchlistEntry as JSON
+
+# try adding the same film again to confirm dedup
+curl -X POST http://127.0.0.1:5000/watchlist/<user_id>/add \
+  -H "Content-Type: application/json" \
+  -d '{"film_id": "<film_uuid>"}'
+# → should fail with AlreadyInWatchlistError (raised, not yet mapped to a specific HTTP status/handler)
+
+# view the watchlist and confirm sort order
+curl http://127.0.0.1:5000/watchlist/<user_id>
+# → JSON array of films; add a second film after the first and confirm it appears first (newest-added-first)
+```
+
+To exercise dedup and the nonexistent-film case directly via pytest:
+
+```
+pytest tests/test_watchlist.py -v
+```
