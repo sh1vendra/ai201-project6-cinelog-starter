@@ -178,3 +178,6 @@ To exercise dedup and the nonexistent-film case directly via pytest:
 ```
 pytest tests/test_watchlist.py -v
 ```
+
+## Commit History Screenshot
+<!-- Paste your git log --oneline screenshot here before submitting -->
