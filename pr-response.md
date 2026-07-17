@@ -180,4 +180,4 @@ pytest tests/test_watchlist.py -v
 ```
 
 ## Commit History Screenshot
-<!-- Paste your git log --oneline screenshot here before submitting -->
+![commit history](https://github.com/user-attachments/assets/25ac632b-30a0-43c5-adbe-f89ba0bda365)
